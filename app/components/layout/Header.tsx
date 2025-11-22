@@ -1,12 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, X, LayoutDashboard, Globe, Folder, Upload, Settings, LogOut, User } from "lucide-react";
+import {
+  Menu,
+  X,
+  LayoutDashboard,
+  Globe,
+  Folder,
+  Upload,
+  Settings,
+  LogOut,
+  User as UserIcon,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+
+import { signOut, onAuthStateChanged, type User } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const router = useRouter();
 
   const navItems = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -16,30 +32,38 @@ export default function Header() {
     { name: "Settings", href: "/settings", icon: Settings },
   ];
 
+  // 🔥 Listen for logged-in user
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser: User | null) => {
+      setUser(firebaseUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 🚪 Logout
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push("/login");
+  };
+
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo + Brand */}
+
+          {/* Logo */}
           <div className="flex items-center">
             <Link href="/dashboard" className="flex items-center space-x-3">
               <div className="relative w-10 h-10">
-                <Image
-                  src="/logo.png"
-                  alt="StudentHost"
-                  fill
-                  className="object-contain"
-                />
+                <Image src="/logo.png" alt="StudentHost" fill className="object-contain" />
               </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  Student<span className="text-[#15803D]">Host</span>
-                </h1>
-              </div>
+              <h1 className="text-xl font-bold text-gray-900">
+                Student<span className="text-[#15803D]">Host</span>
+              </h1>
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Nav */}
           <nav className="hidden md:flex items-center space-x-1">
             {navItems.map((item) => (
               <Link
@@ -53,19 +77,30 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* Right Side - User Menu */}
+          {/* Right side: User */}
           <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-3 text-sm">
-              <div className="text-right">
-                <p className="font-semibold text-gray-900">John Doe</p>
-                <p className="text-xs text-gray-500">student@school.edu.ng</p>
+            {/* Show logged-in user */}
+            {user && (
+              <div className="hidden md:flex items-center gap-3 text-sm">
+                <div className="text-right">
+                  <p className="font-semibold text-gray-900">
+                    {user.displayName ?? "Student User"}
+                  </p>
+                  <p className="text-xs text-gray-500">{user.email}</p>
+                </div>
+                <div className="w-10 h-10 bg-[#FCD34D] rounded-full flex items-center justify-center text-[#0F172A] font-bold">
+                  {user.displayName
+                    ? user.displayName
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()
+                    : "ST"}
+                </div>
               </div>
-              <div className="w-10 h-10 bg-[#FCD34D] rounded-full flex items-center justify-center text-[#0F172A] font-bold">
-                JD
-              </div>
-            </div>
+            )}
 
-            {/* Mobile Menu Button */}
+            {/* Mobile menu icon */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               className="md:hidden p-2"
@@ -73,10 +108,15 @@ export default function Header() {
               {mobileOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
 
-            {/* Logout */}
-            <button className="hidden md:block text-gray-500 hover:text-red-600 transition">
-              <LogOut size={20} />
-            </button>
+            {/* Logout button (desktop only) */}
+            {user && (
+              <button
+                onClick={handleLogout}
+                className="hidden md:block text-gray-500 hover:text-red-600 transition"
+              >
+                <LogOut size={20} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -95,19 +135,29 @@ export default function Header() {
                   {item.name}
                 </Link>
               ))}
-              <div className="pt-4 border-t">
-                <div className="flex items-center gap-3 px-3 py-3">
-                  <User size={20} />
-                  <div>
-                    <p className="font-medium">John Doe</p>
-                    <p className="text-xs text-gray-500">student@school.edu.ng</p>
+
+              {/* Mobile user info */}
+              {user && (
+                <div className="pt-4 border-t">
+                  <div className="flex items-center gap-3 px-3 py-3">
+                    <UserIcon size={20} />
+                    <div>
+                      <p className="font-medium">
+                        {user.displayName ?? "Student User"}
+                      </p>
+                      <p className="text-xs text-gray-500">{user.email}</p>
+                    </div>
                   </div>
+
+                  <button
+                    onClick={handleLogout}
+                    className="text-gray-500 hover:text-red-600 transition px-3 py-2.5 w-full flex items-center gap-2"
+                  >
+                    <LogOut size={20} />
+                    Logout
+                  </button>
                 </div>
-                <button className="flex items-center gap-3 w-full px-3 py-2.5 text-red-600 hover:bg-red-50 rounded-lg">
-                  <LogOut size={20} />
-                  Logout
-                </button>
-              </div>
+              )}
             </div>
           </div>
         )}
