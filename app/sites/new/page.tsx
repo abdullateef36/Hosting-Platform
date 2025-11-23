@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
-import { db, storage } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Upload, FileCode, AlertCircle, CheckCircle, Loader } from "lucide-react";
 
 export default function DeployNewSite() {
@@ -70,26 +69,49 @@ export default function DeployNewSite() {
         totalStorage += file.size;
       });
 
-      // Upload files to Firebase Storage
+      // Upload files to Cloudinary (unsigned preset). Requires these env vars to be set:
+      // NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
       const uploadedFiles: { name: string; url: string; size: number }[] = [];
       const filesArray = Array.from(files);
-      
-      for (let i = 0; i < filesArray.length; i++) {
-        const file = filesArray[i];
-        const filePath = `sites/${siteId}/${file.name}`;
-        const fileRef = ref(storage, filePath);
-        
-        await uploadBytes(fileRef, file);
-        const downloadUrl = await getDownloadURL(fileRef);
-        
-        uploadedFiles.push({
-          name: file.name,
-          url: downloadUrl,
-          size: file.size
-        });
 
-        setUploadProgress(Math.round(((i + 1) / filesArray.length) * 100));
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+      const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+      if (!cloudName || !uploadPreset) {
+        throw new Error("Cloudinary not configured. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET.");
       }
+
+      for (let i = 0; i < filesArray.length; i++) {
+  const file = filesArray[i];
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", uploadPreset);
+  formData.append("folder", `sites/${siteId}`);
+
+  const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+
+  const res = await fetch(uploadUrl, {
+    method: "POST",
+    body: formData,
+  });
+
+  const dataJson = await res.json();
+  console.log("Cloudinary upload:", dataJson);
+
+  if (!res.ok || !dataJson.secure_url) {
+    throw new Error(
+      `Upload failed for ${file.name}: ${dataJson.error?.message || res.status}`
+    );
+  }
+
+  uploadedFiles.push({
+    name: file.name,
+    url: dataJson.secure_url,
+    size: file.size,
+  });
+
+  setUploadProgress(Math.round(((i + 1) / filesArray.length) * 100));
+}
 
       // Create site document in Firestore
       await addDoc(collection(db, "sites"), {

@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "deployments",
+      "queryScope": "Collection",
+      "fields": [
+        { "fieldPath": "ownerId", "order": "Ascending" },
+        { "fieldPath": "timestamp", "order": "Descending" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
