@@ -14,6 +14,7 @@ declare module "react" {
     webkitdirectory?: string;
     directory?: string;
     mozdirectory?: string;
+    allowdirs?: string;
   }
 }
 
@@ -40,7 +41,7 @@ export default function DeployNewSite() {
     // Validate file extensions
     const validExtensions = [
       ".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg",
-      ".ico", ".json", ".xml", ".txt", ".webmanifest", ".webp"
+      ".ico", ".json", ".xml", ".txt", ".webmanifest", ".webp", ".mp3"
     ];
 
     const invalidFiles = fileArray.filter(file => {
@@ -213,9 +214,10 @@ export default function DeployNewSite() {
               webkitdirectory=""
               directory=""
               mozdirectory=""
+              allowdirs=""
               multiple
               onChange={handleFileChange}
-              accept=".html,.css,.js,.png,.jpg,.jpeg,.gif,.svg,.ico,.json,.xml,.txt,.webmanifest"
+              accept=".html,.css,.js,.png,.jpg,.jpeg,.gif,.svg,.ico,.json,.xml,.txt,.webmanifest,.webp,.mp3,.mp4,.wav,.ogg"
               className="hidden"
               id="folder-upload"
               disabled={uploading}
