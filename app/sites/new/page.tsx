@@ -1,18 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { Upload, FileCode, AlertCircle, CheckCircle, Loader } from "lucide-react";
 
+// Type augmentation for non-standard directory attributes
+declare module "react" {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface InputHTMLAttributes<T> {
+    webkitdirectory?: string;
+    directory?: string;
+    mozdirectory?: string;
+  }
+}
+
 export default function DeployNewSite() {
   const { user } = useUser();
   const router = useRouter();
-  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [siteName, setSiteName] = useState("");
-  const [files, setFiles] = useState<FileList | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -20,13 +31,20 @@ export default function DeployNewSite() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
     setError("");
-    
+    setFiles([]);
+
     if (!selectedFiles || selectedFiles.length === 0) return;
 
-    // Validate files
-    const validExtensions = [".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico"];
-    const invalidFiles = Array.from(selectedFiles).filter(file => {
-      const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+    const fileArray = Array.from(selectedFiles);
+
+    // Validate file extensions
+    const validExtensions = [
+      ".html", ".css", ".js", ".png", ".jpg", ".jpeg", ".gif", ".svg",
+      ".ico", ".json", ".xml", ".txt", ".webmanifest", ".webp"
+    ];
+
+    const invalidFiles = fileArray.filter(file => {
+      const ext = "." + file.name.split(".").pop()?.toLowerCase();
       return !validExtensions.includes(ext);
     });
 
@@ -35,22 +53,23 @@ export default function DeployNewSite() {
       return;
     }
 
-    // Check for index.html
-    const hasIndexHtml = Array.from(selectedFiles).some(
-      file => file.name.toLowerCase() === "index.html"
-    );
+    // Check for index.html (in root or subfolder)
+    const hasIndexHtml = fileArray.some(file => {
+      const path = ((file as unknown) as { webkitRelativePath?: string }).webkitRelativePath || file.name;
+      return path.toLowerCase().endsWith("/index.html") || file.name.toLowerCase() === "index.html";
+    });
 
     if (!hasIndexHtml) {
-      setError("Please include an index.html file as your site's entry point.");
+      setError("Please include an index.html file in your project folder.");
       return;
     }
 
-    setFiles(selectedFiles);
+    setFiles(fileArray);
   };
 
   const handleDeploy = async () => {
-    if (!user || !files || !siteName.trim()) {
-      setError("Please provide a site name and select files.");
+    if (!user || files.length === 0 || !siteName.trim()) {
+      setError("Please enter a site name and select your website folder.");
       return;
     }
 
@@ -59,61 +78,64 @@ export default function DeployNewSite() {
     setUploadProgress(0);
 
     try {
-      // Generate unique site ID
       const siteId = `${user.uid}_${Date.now()}`;
       const siteUrl = `${window.location.origin}/sites/${siteId}`;
 
-      // Calculate total storage
       let totalStorage = 0;
-      Array.from(files).forEach(file => {
-        totalStorage += file.size;
-      });
+      files.forEach(f => totalStorage += f.size);
 
-      // Upload files to Cloudinary (unsigned preset). Requires these env vars to be set:
-      // NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
-      const uploadedFiles: { name: string; url: string; size: number }[] = [];
-      const filesArray = Array.from(files);
+      const uploadedFiles: {
+        name: string;
+        url: string;
+        size: number;
+        path: string;
+        type: string;
+      }[] = [];
 
       const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
       const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
       if (!cloudName || !uploadPreset) {
-        throw new Error("Cloudinary not configured. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET.");
+        throw new Error("Cloudinary configuration missing!");
       }
 
-      for (let i = 0; i < filesArray.length; i++) {
-  const file = filesArray[i];
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", uploadPreset);
-  formData.append("folder", `sites/${siteId}`);
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const relativePath = ((file as unknown) as { webkitRelativePath?: string }).webkitRelativePath || file.name;
+        const publicId = relativePath.replace(/\\/g, "/"); // Normalize Windows paths
 
-  const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", uploadPreset);
+        formData.append("folder", `sites/${siteId}`);
+        formData.append("public_id", publicId.split("/").slice(0, -1).join("/") === "" 
+          ? file.name 
+          : publicId.replace(/^.*\//, "") // filename only if in subfolder
+        );
 
-  const res = await fetch(uploadUrl, {
-    method: "POST",
-    body: formData,
-  });
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+          method: "POST",
+          body: formData,
+        });
 
-  const dataJson = await res.json();
-  console.log("Cloudinary upload:", dataJson);
+        const data = await res.json();
 
-  if (!res.ok || !dataJson.secure_url) {
-    throw new Error(
-      `Upload failed for ${file.name}: ${dataJson.error?.message || res.status}`
-    );
-  }
+        if (!res.ok || data.error) {
+          throw new Error(`Upload failed: ${data.error?.message || "Unknown error"}`);
+        }
 
-  uploadedFiles.push({
-    name: file.name,
-    url: dataJson.secure_url,
-    size: file.size,
-  });
+        uploadedFiles.push({
+          name: file.name,
+          url: data.secure_url,
+          size: file.size,
+          path: relativePath,
+          type: file.type || "application/octet-stream",
+        });
 
-  setUploadProgress(Math.round(((i + 1) / filesArray.length) * 100));
-}
+        setUploadProgress(Math.round(((i + 1) / files.length) * 100));
+      }
 
-      // Create site document in Firestore
+      // Save to Firestore
       await addDoc(collection(db, "sites"), {
         name: siteName,
         siteId,
@@ -121,29 +143,27 @@ export default function DeployNewSite() {
         ownerEmail: user.email,
         status: "live",
         url: siteUrl,
-        storage: totalStorage / (1024 * 1024), // Convert to MB
+        storage: Number((totalStorage / (1024 * 1024)).toFixed(2)),
         files: uploadedFiles,
         visits: 0,
         lastDeployed: new Date().toISOString(),
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
       });
 
-      // Create deployment record
       await addDoc(collection(db, "deployments"), {
         siteName,
         siteId,
         ownerId: user.uid,
         status: "success",
         timestamp: new Date().toISOString(),
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
       });
 
-      // Redirect to the deployed site
       router.push(`/sites/${siteId}`);
-      
     } catch (err) {
-      console.error("Deployment error:", err);
-      setError("Failed to deploy site. Please try again.");
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error("Deploy error:", err);
+      setError(errorMessage || "Deployment failed. Please try again.");
       setUploading(false);
     }
   };
@@ -159,19 +179,14 @@ export default function DeployNewSite() {
   return (
     <main className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-3xl mx-auto">
-        
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Deploy New Site</h1>
           <p className="text-gray-600 mt-2">
-            Upload your HTML, CSS, and JavaScript files to deploy your site instantly.
+            Upload your complete website folder — structure will be preserved!
           </p>
         </div>
 
-        {/* Main Form */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          
-          {/* Site Name */}
           <div className="mb-6">
             <label className="block text-sm font-semibold text-gray-900 mb-2">
               Site Name *
@@ -180,92 +195,88 @@ export default function DeployNewSite() {
               type="text"
               value={siteName}
               onChange={(e) => setSiteName(e.target.value)}
-              placeholder="my-awesome-portfolio"
+              placeholder="my-awesome-site"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#15803D] focus:border-transparent outline-none transition"
               disabled={uploading}
             />
-            <p className="text-xs text-gray-500 mt-2">
-              Choose a memorable name for your project
-            </p>
           </div>
 
-          {/* File Upload */}
           <div className="mb-6">
             <label className="block text-sm font-semibold text-gray-900 mb-2">
-              Upload Files *
+              Upload Your Website Folder *
             </label>
-            
-            <div className="relative">
-              <input
-                type="file"
-                multiple
-                onChange={handleFileChange}
-                accept=".html,.css,.js,.png,.jpg,.jpeg,.gif,.svg,.ico"
-                className="hidden"
-                id="file-upload"
-                disabled={uploading}
-              />
-              <label
-                htmlFor="file-upload"
-                className={`flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer transition
-                  ${files ? "border-[#15803D] bg-green-50" : "border-gray-300 hover:border-[#15803D] bg-gray-50"}
-                  ${uploading ? "opacity-50 cursor-not-allowed" : ""}
-                `}
-              >
-                {files ? (
-                  <div className="text-center">
-                    <CheckCircle className="w-12 h-12 text-[#15803D] mx-auto mb-3" />
-                    <p className="text-sm font-semibold text-gray-900">
-                      {files.length} {files.length === 1 ? "file" : "files"} selected
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">
-                      {Array.from(files).map(f => f.name).join(", ")}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-sm font-semibold text-gray-900">
-                      Click to upload or drag and drop
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">
-                      HTML, CSS, JS, and image files
-                    </p>
-                  </div>
-                )}
-              </label>
-            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              // These 3 lines are CRITICAL for folder selection
+              webkitdirectory=""
+              directory=""
+              mozdirectory=""
+              multiple
+              onChange={handleFileChange}
+              accept=".html,.css,.js,.png,.jpg,.jpeg,.gif,.svg,.ico,.json,.xml,.txt,.webmanifest"
+              className="hidden"
+              id="folder-upload"
+              disabled={uploading}
+            />
+
+            <label
+              htmlFor="folder-upload"
+              className={`flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer transition-all
+                ${files.length > 0 ? "border-[#15803D] bg-green-50" : "border-gray-300 hover:border-[#15803D] bg-gray-50"}
+                ${uploading ? "opacity-50 cursor-not-allowed" : ""}
+              `}
+            >
+              {files.length > 0 ? (
+                <div className="text-center">
+                  <CheckCircle className="w-16 h-16 text-[#15803D] mx-auto mb-4" />
+                  <p className="text-lg font-bold text-gray-900">
+                    {files.length} files selected
+                  </p>
+                  <p className="text-sm text-gray-600 mt-2">
+                    Ready to deploy!
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <Upload className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <p className="text-lg font-bold text-gray-900">
+                    Click to select a folder
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Choose your entire website project folder
+                  </p>
+                </div>
+              )}
+            </label>
 
             <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex gap-3">
                 <AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                 <div className="text-sm text-blue-900">
-                  <p className="font-semibold mb-1">Important Requirements:</p>
-                  <ul className="list-disc list-inside space-y-1 text-blue-800">
-                    <li>Must include an <code className="bg-blue-100 px-1 rounded">index.html</code> file</li>
-                    <li>Supported formats: HTML, CSS, JS, PNG, JPG, GIF, SVG, ICO</li>
-                    <li>All files should be in the root folder (no subfolders)</li>
+                  <p className="font-semibold mb-1">How to upload:</p>
+                  <ul className="list-disc list-inside space-y-1 text-blue-800 text-xs">
+                    <li>Click above and <strong>select your website folder</strong> (not files)</li>
+                    <li>Must contain <code className="bg-blue-100 px-1 rounded">index.html</code> in the root</li>
+                    <li>Subfolders like <code className="bg-blue-100 px-1 rounded">css/</code>, <code className="bg-blue-100 px-1 rounded">js/</code>, <code className="bg-blue-100 px-1 rounded">assets/</code> are fully supported</li>
                   </ul>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Error Message */}
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
-                <p className="text-sm text-red-800">{error}</p>
-              </div>
+            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+              <p className="text-sm text-red-800">{error}</p>
             </div>
           )}
 
-          {/* Upload Progress */}
           {uploading && (
             <div className="mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-gray-900">Deploying...</span>
+              <div className="flex justify-between mb-2">
+                <span className="text-sm font-semibold">Uploading & Deploying...</span>
                 <span className="text-sm text-gray-600">{uploadProgress}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
@@ -277,47 +288,40 @@ export default function DeployNewSite() {
             </div>
           )}
 
-          {/* Deploy Button */}
           <button
             onClick={handleDeploy}
-            disabled={uploading || !siteName.trim() || !files}
-            className={`w-full py-4 rounded-lg font-semibold text-white transition-all duration-200 flex items-center justify-center gap-2
-              ${uploading || !siteName.trim() || !files
-                ? "bg-gray-300 cursor-not-allowed"
-                : "bg-[#15803D] hover:bg-[#156e35] shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
-              }
-            `}
+            disabled={uploading || !siteName.trim() || files.length === 0}
+            className={`w-full py-4 rounded-lg font-bold text-white flex items-center justify-center gap-3 transition-all
+              ${uploading || !siteName.trim() || files.length === 0
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-[#15803D] hover:bg-[#156e35] shadow-lg hover:shadow-xl"
+              }`}
           >
             {uploading ? (
               <>
-                <Loader className="w-5 h-5 animate-spin" />
-                Deploying Site...
+                <Loader className="w-6 h-6 animate-spin" />
+                Deploying Your Site...
               </>
             ) : (
               <>
-                <Upload className="w-5 h-5" />
-                Deploy Site
+                <Upload className="w-6 h-6" />
+                Deploy Site Now
               </>
             )}
           </button>
         </div>
 
-        {/* Tips Section */}
         <div className="mt-8 bg-linear-to-r from-[#15803D] to-green-600 text-white rounded-2xl p-6">
           <div className="flex items-start gap-4">
             <FileCode className="w-8 h-8 shrink-0 mt-1" />
             <div>
-              <h3 className="font-bold text-lg mb-2">Quick Tips for Deployment</h3>
-              <ul className="space-y-1 text-sm opacity-90">
-                <li>• Make sure your main file is named <code className="bg-white/20 px-1 rounded">index.html</code></li>
-                <li>• Use relative paths for CSS and JS files (e.g., <code className="bg-white/20 px-1 rounded">./style.css</code>)</li>
-                <li>• Keep all files in the same folder for easy deployment</li>
-                <li>• Your site will be live instantly after upload!</li>
-              </ul>
+              <h3 className="font-bold text-lg mb-2">Your site goes live instantly!</h3>
+              <p className="text-sm opacity-90">
+                Full folder structure preserved • Works with React, Vite, plain HTML • Free & fast hosting
+              </p>
             </div>
           </div>
         </div>
-
       </div>
     </main>
   );

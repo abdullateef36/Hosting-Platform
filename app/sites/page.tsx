@@ -2,13 +2,12 @@
 
 import { useUser } from "@/context/UserContext";
 import { useEffect, useState } from "react";
-import { db, storage } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, doc, deleteDoc, updateDoc } from "firebase/firestore";
-import { ref, deleteObject } from "firebase/storage";
 import { 
   Globe, Trash2, ExternalLink, Search, Plus, 
   CheckCircle, XCircle, Loader, Calendar, HardDrive,
-  Eye, Pause, Play, AlertTriangle
+  Eye, Pause, Play
 } from "lucide-react";
 import Link from "next/link";
 
@@ -21,7 +20,7 @@ interface Site {
   lastDeployed?: string;
   url: string;
   visits: number;
-  files: { name: string; url: string }[];
+  files: { name: string; url: string; path: string; type: string }[];
 }
 
 export default function MySites() {
@@ -68,18 +67,7 @@ export default function MySites() {
     setDeleting(site.id);
 
     try {
-      // Delete files from storage
-      for (const file of site.files) {
-        try {
-          const filePath = `sites/${site.siteId}/${file.name}`;
-          const fileRef = ref(storage, filePath);
-          await deleteObject(fileRef);
-        } catch (err) {
-          console.error(`Error deleting file ${file.name}:`, err);
-        }
-      }
-
-      // Delete site document
+      // Delete site document from Firestore
       await deleteDoc(doc(db, "sites", site.id));
 
       setDeleting(null);
