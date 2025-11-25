@@ -18,7 +18,7 @@ export async function GET(
     const { db } = await import('@/lib/firebase');
     const { collection, query, where, getDocs } = await import('firebase/firestore');
 
-    const q = query(collection(db, 'sites'), where('siteId', '==', siteId));
+    const q = query(collection(db!, 'sites'), where('siteId', '==', siteId));
     const snap = await getDocs(q);
 
     if (snap.empty) {

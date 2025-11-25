@@ -137,7 +137,7 @@ export default function DeployNewSite() {
       }
 
       // Save to Firestore
-      await addDoc(collection(db, "sites"), {
+      await addDoc(collection(db!, "sites"), {
         name: siteName,
         siteId,
         ownerId: user.uid,
@@ -151,7 +151,7 @@ export default function DeployNewSite() {
         createdAt: serverTimestamp(),
       });
 
-      await addDoc(collection(db, "deployments"), {
+      await addDoc(collection(db!, "deployments"), {
         siteName,
         siteId,
         ownerId: user.uid,

@@ -50,7 +50,7 @@ export default function SiteViewer() {
 
 		const fetchSite = async () => {
 			try {
-				const q = query(collection(db, "sites"), where("siteId", "==", siteId));
+				const q = query(collection(db!, "sites"), where("siteId", "==", siteId));
 				const snap = await getDocs(q);
 
 				if (!mounted) return;

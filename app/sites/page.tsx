@@ -35,7 +35,7 @@ export default function MySites() {
     if (!user) return;
 
     const q = query(
-      collection(db, "sites"),
+      collection(db!, "sites"),
       where("ownerId", "==", user.uid)
     );
 
@@ -68,7 +68,7 @@ export default function MySites() {
 
     try {
       // Delete site document from Firestore
-      await deleteDoc(doc(db, "sites", site.id));
+      await deleteDoc(doc(db!, "sites", site.id));
 
       setDeleting(null);
     } catch (err) {
@@ -82,7 +82,7 @@ export default function MySites() {
     const newStatus = site.status === "live" ? "paused" : "live";
     
     try {
-      await updateDoc(doc(db, "sites", site.id), {
+      await updateDoc(doc(db!, "sites", site.id), {
         status: newStatus
       });
     } catch (err) {
