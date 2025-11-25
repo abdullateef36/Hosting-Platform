@@ -20,7 +20,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+        if (!auth) {
+          alert("Authentication is not available right now. Please try again in a moment.");
+          setLoading(false);
+          return;
+        }
+
+        await signInWithEmailAndPassword(auth, email, password);
       router.push("/");
     } catch (err: unknown) {
       if (err instanceof Error) {

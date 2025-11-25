@@ -20,6 +20,12 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
+      if (!auth) {
+        alert("Authentication is not available right now. Please try again in a moment.");
+        setLoading(false);
+        return;
+      }
+
       // Create user
       const userCredential = await createUserWithEmailAndPassword(
         auth,
