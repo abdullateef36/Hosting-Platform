@@ -502,13 +502,13 @@ export default function FilesPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full h-full max-w-7xl max-h-full flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-4 sm:p-6 border-b bg-gray-50">
-              <div className="flex items-center gap-4 flex-1 min-w-0">
-                <Code className="w-8 h-8 text-purple-600 shrink-0" />
+              <div className="flex items-center gap-1 flex-1 min-w-0">
+                <Code className="w-6 h-6 text-purple-600 shrink-0 mr-3"/>
                 <div className="min-w-0">
                   <h3 className="font-bold text-lg text-gray-900 truncate">
                     {sites[editingFile.siteIndex].files![editingFile.fileIndex].name}
                   </h3>
-                  <p className="text-sm text-gray-500 truncate">
+                  <p className="text-xs text-gray-500 truncate">
                     {getFileLanguage(sites[editingFile.siteIndex].files![editingFile.fileIndex].name)} • {formatFileSize(sites[editingFile.siteIndex].files![editingFile.fileIndex].size)}
                   </p>
                 </div>
@@ -531,7 +531,7 @@ export default function FilesPage() {
                 </button>
                 <button
                   onClick={() => setEditingFile(null)}
-                  className="p-3 hover:bg-gray-200 rounded-xl transition ml-2"
+                  className="p-3 hover:bg-gray-200 rounded-xl transition -ml-3"
                 >
                   <X className="w-5 h-5" />
                 </button>
