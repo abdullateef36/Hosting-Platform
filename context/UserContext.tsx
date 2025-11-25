@@ -37,7 +37,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         } catch {}
       }
 
-      onAuthStateChanged(auth, (firebaseUser) => {
+      const firebaseAuth = auth;
+
+      if (!firebaseAuth) {
+        queueMicrotask(() => setLoading(false));
+        return;
+      }
+
+      onAuthStateChanged(firebaseAuth, (firebaseUser) => {
         cachedUser = firebaseUser;
         queueMicrotask(() => {
           setUser(firebaseUser);
