@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
 
 export async function GET(
   _req: Request,
@@ -16,7 +14,10 @@ export async function GET(
       );
     }
 
-    // Use client SDK with proper error handling
+    // Lazy load Firebase only at runtime to avoid build-time initialization
+    const { db } = await import('@/lib/firebase');
+    const { collection, query, where, getDocs } = await import('firebase/firestore');
+
     const q = query(collection(db, 'sites'), where('siteId', '==', siteId));
     const snap = await getDocs(q);
 
