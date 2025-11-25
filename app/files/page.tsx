@@ -524,7 +524,7 @@ export default function FilesPage() {
                 <button
                   onClick={handleSaveFile}
                   disabled={savingFile}
-                  className="px-5 py-2 bg-[#15803D] text-white rounded-lg flex items-center gap-2 hover:bg-[#166534] disabled:opacity-50 transition"
+                  className="px-5 py-2 bg-[#15803D] text-white rounded-lg flex items-center gap-1 hover:bg-[#166534] disabled:opacity-50 transition"
                 >
                   {savingFile ? <Loader className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Save
