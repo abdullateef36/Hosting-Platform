@@ -56,23 +56,41 @@ export async function GET(
       );
     }
 
-    // Fetch the asset and re-serve with correct headers
+    // Fetch the asset from Cloudinary (or other URL)
     const res = await fetch(indexUrl);
 
     if (!res.ok) {
+      const upstreamText = await res.text().catch(() => "");
+      console.error('proxy upstream fetch failed', { siteId, indexUrl, status: res.status, body: upstreamText });
       return NextResponse.json(
-        { error: 'Failed to fetch site asset', siteId },
+        { error: 'Failed to fetch site asset', siteId, upstreamStatus: res.status },
         { status: 502 }
       );
     }
 
-    const body = await res.arrayBuffer();
+    // Fetch and rewrite index.html to point assets to the asset proxy
+    const text = await res.text();
+    let html = text;
 
-    return new Response(Buffer.from(body), {
+    // Replace relative src/href with proxy URLs: /api/proxy/{siteId}/{path}
+    const attrRegex = /(src|href)=["']([^"']+)["']/gi;
+
+    html = html.replace(attrRegex, (match, attr, val) => {
+      // If absolute URL or data/anchor, leave unchanged
+      if (/^(https?:|\/\/|data:|mailto:|#)/i.test(val)) return match;
+
+      // Remove leading ./ and /
+      const cleanPath = val.replace(/^\.\//, '').replace(/^\//, '');
+
+      // Point to the asset proxy
+      return `${attr}="/api/proxy/${siteId}/${cleanPath}"`;
+    });
+
+    return new Response(html, {
       status: 200,
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Content-Disposition': 'inline', // Explicitly tell browser to render, not download
+        'Cache-Control': 'public, max-age=3600', // Cache HTML for 1 hour
       },
     });
   } catch (err) {

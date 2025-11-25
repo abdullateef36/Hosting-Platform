@@ -91,6 +91,8 @@ export default function DeployNewSite() {
         size: number;
         path: string;
         type: string;
+        public_id?: string;
+        resource_type?: string;
       }[] = [];
 
       const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
@@ -109,10 +111,19 @@ export default function DeployNewSite() {
         formData.append("file", file);
         formData.append("upload_preset", uploadPreset);
         formData.append("folder", `sites/${siteId}`);
-        formData.append("public_id", publicId.split("/").slice(0, -1).join("/") === "" 
-          ? file.name 
-          : publicId.replace(/^.*\//, "") // filename only if in subfolder
-        );
+
+        // Normalize path and use it as public_id (without extension) so we can map files later
+        const normalizedPath = publicId.replace(/\\\\/g, "/");
+        const publicIdValue = normalizedPath.replace(/\.[^/.]+$/, "");
+        formData.append("public_id", publicIdValue);
+
+        // Use 'raw' for HTML/CSS/JS/text files so Cloudinary serves them correctly
+        const resourceType = (file.type || "").startsWith("image/")
+          ? "image"
+          : (file.type || "").startsWith("video/")
+          ? "video"
+          : "raw";
+        formData.append("resource_type", resourceType);
 
         const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
           method: "POST",
@@ -129,8 +140,10 @@ export default function DeployNewSite() {
           name: file.name,
           url: data.secure_url,
           size: file.size,
-          path: relativePath,
+          path: relativePath.replace(/\\\\/g, "/"),
           type: file.type || "application/octet-stream",
+          public_id: data.public_id || publicIdValue,
+          resource_type: data.resource_type || resourceType,
         });
 
         setUploadProgress(Math.round(((i + 1) / files.length) * 100));
