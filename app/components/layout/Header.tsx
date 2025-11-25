@@ -12,7 +12,6 @@ import {
   Upload,
   Settings,
   LogOut,
-  // User as UserIcon,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { signOut } from "firebase/auth";
