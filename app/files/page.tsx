@@ -531,7 +531,7 @@ export default function FilesPage() {
                 </button>
                 <button
                   onClick={() => setEditingFile(null)}
-                  className="p-3 hover:bg-gray-200 rounded-xl transition -ml-3"
+                  className="p-3 hover:bg-gray-200 rounded-xl transition -ml-1"
                 >
                   <X className="w-5 h-5" />
                 </button>
