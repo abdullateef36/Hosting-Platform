@@ -41,9 +41,12 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user) return;
 
+    const firestore = db;
+    if (!firestore) return;
+
     // Fetch sites
     const sitesQuery = query(
-      collection(db, "sites"),
+      collection(firestore, "sites"),
       where("ownerId", "==", user.uid)
     );
 
@@ -67,7 +70,7 @@ export default function Dashboard() {
 
     // Fetch recent deployments
     const deploymentsQuery = query(
-      collection(db, "deployments"),
+      collection(firestore, "deployments"),
       where("ownerId", "==", user.uid),
       orderBy("timestamp", "desc"),
       limit(5)
