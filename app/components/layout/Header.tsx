@@ -35,6 +35,14 @@ export default function Header() {
   ];
 
   const handleLogout = async () => {
+    // `auth` may be undefined during build-time typing; guard at runtime.
+    if (!auth) {
+      // If auth isn't initialized for some reason, still clear local state and navigate.
+      localStorage.removeItem("authUser");
+      router.push("/login");
+      return;
+    }
+
     await signOut(auth);
     localStorage.removeItem("authUser");
     router.push("/login");
