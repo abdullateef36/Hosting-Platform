@@ -15,6 +15,7 @@ import Link from "next/link";
 interface Site {
   id: string;
   name: string;
+  siteId: string;
   status: "live" | "building" | "error" | "paused";
   storage: number;
   lastDeployed?: string;
@@ -297,7 +298,7 @@ export default function Dashboard() {
                     </div>
                     {site.url && site.status === "live" && (
                       <a
-                        href={site.url}
+                        href={`/sites/${site.siteId}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-2 text-gray-400 hover:text-[#15803D] transition"
