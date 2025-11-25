@@ -98,6 +98,16 @@ export default function Header() {
               </div>
             )}
 
+            {/* Auth Links (when not logged in) */}
+            {!loading && !user && (
+              <Link
+                href="/signup"
+                className="hidden md:block px-4 py-2.5 text-sm font-medium bg-[#15803D] text-white rounded-lg hover:bg-[#138233] transition"
+              >
+                Sign Up
+              </Link>
+            )}
+
             {/* Mobile menu */}
             <button onClick={() => setMobileOpen(!mobileOpen)} className="md:hidden p-2">
               {mobileOpen ? <X size={24} /> : <Menu size={24} />}
@@ -114,6 +124,59 @@ export default function Header() {
             )}
           </div>
         </div>
+
+        {/* Mobile Navigation Menu */}
+        {mobileOpen && (
+          <div className="md:hidden border-t border-gray-200 py-4">
+            {/* Authenticated user menu */}
+            {!loading && user && (
+              <>
+                <div className="px-4 py-3 border-b border-gray-200 mb-4">
+                  <p className="font-semibold text-gray-900">
+                    {user.displayName ?? "Student User"}
+                  </p>
+                  <p className="text-xs text-gray-500">{user.email}</p>
+                </div>
+                <nav className="flex flex-col space-y-2">
+                  {navItems.map((item) => {
+                    const active = pathname === item.href;
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        onClick={() => setMobileOpen(false)}
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition
+                          ${active ? "bg-[#15803D] text-white" : "text-gray-700 hover:bg-gray-100"}
+                        `}
+                      >
+                        <item.icon size={18} />
+                        {item.name}
+                      </Link>
+                    );
+                  })}
+                </nav>
+                <button
+                  onClick={handleLogout}
+                  className="w-full mt-4 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition flex items-center gap-2"
+                >
+                  <LogOut size={18} />
+                  Sign Out
+                </button>
+              </>
+            )}
+
+            {/* Unauthenticated user menu */}
+            {!loading && !user && (
+              <Link
+                href="/signup"
+                onClick={() => setMobileOpen(false)}
+                className="px-4 py-2 text-sm font-medium bg-[#15803D] text-white rounded-lg hover:bg-[#138233] transition block w-full text-center"
+              >
+                Sign Up
+              </Link>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

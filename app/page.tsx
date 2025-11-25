@@ -2,6 +2,7 @@
 
 import { useUser } from "@/context/UserContext";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, limit } from "firebase/firestore";
 import { 
@@ -29,7 +30,8 @@ interface Deployment {
 }
 
 export default function Dashboard() {
-  const { user } = useUser();
+  const { user, loading: authLoading } = useUser();
+  const router = useRouter();
   const [sites, setSites] = useState<Site[]>([]);
   const [recentDeployments, setRecentDeployments] = useState<Deployment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +39,13 @@ export default function Dashboard() {
   const [totalVisits, setTotalVisits] = useState(0);
 
   const STORAGE_LIMIT_GB = 10;
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login");
+    }
+  }, [user, authLoading, router]);
 
   useEffect(() => {
     if (!user) return;
