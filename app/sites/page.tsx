@@ -3,7 +3,7 @@
 import { useUser } from "@/context/UserContext";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, doc, deleteDoc, updateDoc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, deleteDoc, updateDoc, getDocs  } from "firebase/firestore";
 import { 
   Globe, Trash2, ExternalLink, Search, Plus, 
   CheckCircle, XCircle, Loader, Calendar, HardDrive,
@@ -59,24 +59,43 @@ export default function MySites() {
     return () => unsubscribe();
   }, [user]);
 
+  const deleteSiteDeployments = async (siteId: string) => {
+  const deploymentsRef = collection(db!, "deployments");
+  const q = query(deploymentsRef, where("siteId", "==", siteId));
+
+  const results = await getDocs(q);
+
+  const promises: Promise<void>[] = [];
+
+  results.forEach((docSnap) => {
+    promises.push(deleteDoc(doc(db!, "deployments", docSnap.id)));
+  });
+
+  await Promise.all(promises);
+};
+
   const handleDelete = async (site: Site) => {
-    if (!confirm(`Are you sure you want to delete "${site.name}"? This action cannot be undone.`)) {
-      return;
-    }
+  if (!confirm(`Are you sure you want to delete "${site.name}"? This action cannot be undone.`)) {
+    return;
+  }
 
-    setDeleting(site.id);
+  setDeleting(site.id);
 
-    try {
-      // Delete site document from Firestore
-      await deleteDoc(doc(db!, "sites", site.id));
+  try {
 
-      setDeleting(null);
-    } catch (err) {
-      console.error("Error deleting site:", err);
-      alert("Failed to delete site. Please try again.");
-      setDeleting(null);
-    }
-  };
+    // 1️⃣ DELETE ALL DEPLOYMENTS FIRST
+    await deleteSiteDeployments(site.siteId);
+
+    // 2️⃣ THEN DELETE THE SITE ITSELF
+    await deleteDoc(doc(db!, "sites", site.id));
+
+    setDeleting(null);
+  } catch (err) {
+    console.error("Error deleting site:", err);
+    alert("Failed to delete site. Please try again.");
+    setDeleting(null);
+  }
+};
 
   const toggleSiteStatus = async (site: Site) => {
     const newStatus = site.status === "live" ? "paused" : "live";
