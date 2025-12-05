@@ -156,7 +156,7 @@ export default function DeploymentsPage() {
       last7Days.push({ date: dateStr, count });
     }
     
-    return last7Days;
+    return last7Days.reverse();
   };
 
   const getStatusIcon = (status: DeploymentStatus) => {
