@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚀 Hosting Platform (School Project)
 
-## Getting Started
+A simple static hosting platform built as a school project that allows users to upload and host front-end websites (HTML, CSS, and JavaScript) and preview them live.  
+This project demonstrates core hosting concepts (file upload, proxy-based routing, and live preview) without requiring DNS or custom domain management.
 
-First, run the development server:
+---
 
+## 🔎 Features
+
+- User authentication (Sign up & Login — Firebase)
+- Upload static websites (HTML, CSS, JS) as a folder
+- Live preview of uploaded sites via a proxy route
+- Unique site IDs for each upload
+- Dashboard-style UI for managing uploads
+- Proxy-based file serving (path-based hosting)
+
+---
+
+## 🧭 Why this approach?
+
+This project uses path-based routing and a server-side proxy instead of giving each user a custom DNS/subdomain.  
+That makes it easy to provide live previews/hosting in a school project environment without the complexity and cost of domain registrars, SSL wildcard certs, and DNS automation.
+
+---
+
+## 🛠️ Built With
+
+- **Next.js** (App Router) — frontend + API routes  
+- **TypeScript** — type safety  
+- **Firebase** — Authentication & Storage (optional / can be swapped)  
+- **Vercel** — deployment for frontend & API (note: Vercel has filesystem write limitations; see Deployment below)
+
+---
+
+## 📁 Project Structure (example)
+---
+
+## ⚙️ How It Works
+
+1. User registers and logs in.
+2. User uploads a folder containing `index.html` and static assets.
+3. Server stores the files and returns a unique site ID.
+4. The platform serves the files through a proxy route:https://your-app.com/api/proxy/{site-id}
+5. Anyone with the link can view the uploaded site live.
+
+---
+
+## 🚀 Quick Start (Local Development)
+
+> These instructions assume a Next.js + TypeScript project scaffold.
+
+1. **Clone the repository**
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+git clone https://github.com/abdullateef36/Hosting-Platform.git
+cd Hosting-Platform
