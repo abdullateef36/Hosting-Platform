@@ -53,3 +53,20 @@ That makes it easy to provide live previews/hosting in a school project environm
 ```bash
 git clone https://github.com/abdullateef36/Hosting-Platform.git
 cd Hosting-Platform
+
+2. Install dependencies
+npm install
+
+3. Environment variables
+Create a .env.local file and add your Firebase config (if using Firebase for auth/storage):
+
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+
+4. Run the dev server
+npm run dev
+
+5. Open
+http://localhost:3000
